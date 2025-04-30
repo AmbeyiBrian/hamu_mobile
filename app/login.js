@@ -15,6 +15,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../services/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../services/api';
 // Import local Colors instead of from constants directory
 import Colors from './Colors';
 
@@ -51,7 +53,6 @@ export default function LoginScreen() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const handleLogin = async () => {
     if (!validateForm()) {
       return;
@@ -60,6 +61,11 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       await login(phone_number, password);
+      
+      // Add a delay to ensure the token is fully set before navigation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Now navigate to the tabs
       router.replace('/(tabs)');
     } catch (error) {
       Alert.alert(

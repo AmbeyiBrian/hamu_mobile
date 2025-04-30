@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
-// Base URL for the API - fixing potential typo in IP address
+// Base URL for the API
 // Standard local network IP typically starts with 192.168.x.x
-const API_BASE_URL = 'http://192.169.0.104:8000/api'; // Corrected IP address
+const API_BASE_URL = 'http://192.169.0.105:8000/api'; // Fixed IP format and port separator
 
 /**
  * Add query parameters to a URL
@@ -57,8 +57,7 @@ class Api {
    * @param {Object} queryParams - Query parameters to add to the URL
    * @param {boolean} isRetry - Whether this is a retry attempt after token refresh
    * @returns {Promise<any>} - Response data
-   */
-  async fetch(endpoint, options = {}, queryParams = {}, isRetry = false) {
+   */  async fetch(endpoint, options = {}, queryParams = {}, isRetry = false) {
     // Get the auth token - prioritize memory cache for performance
     let token = this._authToken;
     
@@ -68,6 +67,10 @@ class Api {
       // Update memory cache if found in storage
       if (token) {
         this._authToken = token;
+        console.log(`Token retrieved from storage for API call to ${endpoint}`);
+      } else if (!endpoint.includes('token')) {
+        // If this is not an auth endpoint and we have no token, log a warning
+        console.warn(`No auth token available for request to ${endpoint}`);
       }
     }
     
@@ -80,6 +83,7 @@ class Api {
     // Add auth token if available
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+      console.log(`Added auth token to request for ${endpoint}`);
     }
 
     // Add query parameters to the URL
@@ -162,8 +166,7 @@ class Api {
    * @param {string} phone_number - phone number
    * @param {string} password - Password
    * @returns {Promise<Object>} - Auth tokens and user data
-   */
-  async login(phone_number, password) {
+   */  async login(phone_number, password) {
     // Clear any previous state before login attempt
     this.clearState();
     
@@ -175,9 +178,16 @@ class Api {
     // Set tokens in memory and storage
     this._authToken = data.access;
     
+    console.log('Got access token, setting in memory and storage');
+    
     // Store the auth tokens - must await these operations
     await AsyncStorage.setItem('authToken', data.access);
     await AsyncStorage.setItem('refreshToken', data.refresh);
+    
+    // Add small delay to ensure token is properly stored
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    console.log('Token stored, now fetching user profile');
     
     // Fetch user profile after token is properly stored
     const user = await this.getCurrentUser();

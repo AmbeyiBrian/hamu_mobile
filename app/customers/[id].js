@@ -250,7 +250,7 @@ export default function CustomerDetailsScreen() {
         </View>
         <View style={styles.recordDetailItem}>
           <Text style={styles.recordDetailLabel}>Received by:</Text>
-          <Text style={styles.recordDetailValue}>{credit.received_by || 'Unknown'}</Text>
+          <Text style={styles.recordDetailValue}>{credit.agent_name || 'Unknown'}</Text>
         </View>
         {credit.notes && (
           <View style={styles.recordDetailItem}>

@@ -12,6 +12,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useAuth } from '../../services/AuthContext';
+// Import AsyncStorage for token access
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // Import local Colors instead of from constants directory
 import Colors from '../Colors';
 import api from '../../services/api';
@@ -28,12 +30,20 @@ export default function Dashboard() {
   const [recentTransactions, setRecentTransactions] = useState([]);
   const { user } = useAuth();
   const router = useRouter();
-
   // Function to load dashboard data
   const loadDashboardData = async () => {
     setIsLoading(true);
     try {
-      // Get today's date as a string in YYYY-MM-DD format for filtering
+      console.log('Loading dashboard data...');
+      
+      // First check if the token is available
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        console.log('No auth token found, redirecting to login');
+        router.replace('/login');
+        return;
+      }
+        // Get today's date as a string in YYYY-MM-DD format for filtering
       const today = new Date().toISOString().split('T')[0];
       
       // Load all necessary data with proper filtering
@@ -48,6 +58,8 @@ export default function Dashboard() {
         api.getSales(1, { limit: 20 }),
         api.getRefills(1, { limit: 20 })
       ]);
+        
+      console.log('Successfully fetched all dashboard data');
 
       // Filter sales and refills to today's date in memory since API doesn't support date filtering
       const todayStart = new Date(today);
@@ -90,18 +102,45 @@ export default function Dashboard() {
       // Sort transactions by date (most recent first) and take the first 5
       todayTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setRecentTransactions(todayTransactions.slice(0, 5));
-      
-    } catch (error) {
+        } catch (error) {
       console.error("Error loading dashboard data:", error);
+      // Check if this is an authentication error (401)
+      if (error.status === 401) {
+        console.log('Authentication error detected, redirecting to login');
+        router.replace('/login');
+      }
     } finally {
       setIsLoading(false);
       setRefreshing(false);
     }
   };
-
-  // Load data on component mount
+  // Load data on component mount with a small delay to ensure auth is ready
   useEffect(() => {
-    loadDashboardData();
+    // Function to check token and then load data
+    const checkAndLoadData = async () => {
+      try {
+        // First check if token exists and is valid
+        const token = await AsyncStorage.getItem('authToken');
+        if (!token) {
+          console.log('No token found, redirecting to login...');
+          router.replace('/login');
+          return;
+        }
+        
+        // Set token in API explicitly to ensure it's available
+        await api.setAuthToken(token);
+        
+        // Small delay to ensure token is fully set
+        setTimeout(() => {
+          loadDashboardData();
+        }, 300);
+      } catch (err) {
+        console.error('Error in token check:', err);
+        router.replace('/login');
+      }
+    };
+    
+    checkAndLoadData();
   }, []);
 
   // Handle refresh
